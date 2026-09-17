@@ -1,0 +1,158 @@
+import { useEffect, useState } from 'react'
+import { addExercise, addSession, getExercises } from '../db'
+import { today } from '../lib/date'
+
+function emptyRow() {
+  return { key: crypto.randomUUID(), exerciseName: '', weightKg: '', reps: '', note: '' }
+}
+
+export default function NewSession({ onSaved, onCancel }) {
+  const [exercises, setExercises] = useState([])
+  const [date, setDate] = useState(today())
+  const [sessionNote, setSessionNote] = useState('')
+  const [rows, setRows] = useState([emptyRow()])
+  const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
+
+  useEffect(() => {
+    getExercises().then(setExercises)
+  }, [])
+
+  function updateRow(key, field, value) {
+    setRows((rows) => rows.map((row) => (row.key === key ? { ...row, [field]: value } : row)))
+  }
+
+  function addRow() {
+    setRows((rows) => [...rows, emptyRow()])
+  }
+
+  function removeRow(key) {
+    setRows((rows) => rows.filter((row) => row.key !== key))
+  }
+
+  async function handleSave() {
+    setError('')
+    const validRows = rows.filter((row) => row.exerciseName.trim())
+
+    if (validRows.length === 0) {
+      setError('Add at least one exercise.')
+      return
+    }
+    for (const row of validRows) {
+      if (row.weightKg === '' || row.reps === '') {
+        setError(`Enter weight and reps for ${row.exerciseName.trim()}.`)
+        return
+      }
+    }
+
+    setSaving(true)
+    try {
+      const entries = []
+      for (const row of validRows) {
+        const name = row.exerciseName.trim()
+        let exercise = exercises.find((e) => e.name.toLowerCase() === name.toLowerCase())
+        if (!exercise) exercise = await addExercise(name)
+        entries.push({
+          exerciseId: exercise.id,
+          weightKg: Number(row.weightKg),
+          reps: Number(row.reps),
+          note: row.note,
+        })
+      }
+      await addSession({ date, note: sessionNote, entries })
+      onSaved()
+    } catch {
+      setError('Something went wrong saving this session. Try again.')
+      setSaving(false)
+    }
+  }
+
+  return (
+    <div className="page">
+      <div className="page-header">
+        <h1>New Session</h1>
+        <button className="btn-text" onClick={onCancel}>Cancel</button>
+      </div>
+
+      <label className="field">
+        <span>Date</span>
+        <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
+      </label>
+
+      <datalist id="exercise-options">
+        {exercises.map((e) => (
+          <option key={e.id} value={e.name} />
+        ))}
+      </datalist>
+
+      {rows.map((row, i) => (
+        <div key={row.key} className="card entry-form-row">
+          <div className="card-title-row">
+            <strong>Exercise {i + 1}</strong>
+            {rows.length > 1 && (
+              <button className="btn-text" onClick={() => removeRow(row.key)}>Remove</button>
+            )}
+          </div>
+          <label className="field">
+            <span>Exercise name</span>
+            <input
+              list="exercise-options"
+              placeholder="e.g. Bench Press"
+              value={row.exerciseName}
+              onChange={(e) => updateRow(row.key, 'exerciseName', e.target.value)}
+            />
+          </label>
+          <div className="field-row">
+            <label className="field">
+              <span>Weight (kg)</span>
+              <input
+                type="number"
+                inputMode="decimal"
+                min="0"
+                step="0.5"
+                value={row.weightKg}
+                onChange={(e) => updateRow(row.key, 'weightKg', e.target.value)}
+              />
+            </label>
+            <label className="field">
+              <span>Reps</span>
+              <input
+                type="number"
+                inputMode="numeric"
+                min="0"
+                step="1"
+                value={row.reps}
+                onChange={(e) => updateRow(row.key, 'reps', e.target.value)}
+              />
+            </label>
+          </div>
+          <label className="field">
+            <span>Note (optional)</span>
+            <input
+              placeholder="e.g. felt easy, last rep was a grind"
+              value={row.note}
+              onChange={(e) => updateRow(row.key, 'note', e.target.value)}
+            />
+          </label>
+        </div>
+      ))}
+
+      <button className="btn-secondary" onClick={addRow}>+ Add another exercise</button>
+
+      <label className="field">
+        <span>Session note (optional)</span>
+        <input
+          placeholder="e.g. morning gym session"
+          value={sessionNote}
+          onChange={(e) => setSessionNote(e.target.value)}
+        />
+      </label>
+
+      {error && <p className="error">{error}</p>}
+
+      <button className="btn-primary btn-block" onClick={handleSave} disabled={saving}>
+        {saving ? 'Saving…' : 'Save Session'}
+      </button>
+    </div>
+  )
+}
