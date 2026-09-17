@@ -1,11 +1,19 @@
-import { useEffect, useState } from 'react'
-import { addExercise, getExercises, renameExercise, setExerciseArchived } from '../db'
+import { useEffect, useMemo, useState } from 'react'
+import {
+  addExercise,
+  countEntriesForExercise,
+  deleteExercise,
+  getExercises,
+  renameExercise,
+  setExerciseArchived,
+} from '../db'
+import { fuzzySearchExercises } from '../lib/fuzzySearch'
 
 export default function Exercises({ onSelectExercise }) {
   const [exercises, setExercises] = useState(null)
   const [archived, setArchived] = useState([])
   const [showArchived, setShowArchived] = useState(false)
-  const [newName, setNewName] = useState('')
+  const [query, setQuery] = useState('')
   const [editingId, setEditingId] = useState(null)
   const [editingName, setEditingName] = useState('')
 
@@ -18,11 +26,18 @@ export default function Exercises({ onSelectExercise }) {
 
   useEffect(refresh, [])
 
+  const visibleExercises = useMemo(() => {
+    if (!exercises) return exercises
+    return query.trim() ? fuzzySearchExercises(query, exercises) : exercises
+  }, [exercises, query])
+
+  const hasExactMatch = (exercises ?? []).some((e) => e.name.toLowerCase() === query.trim().toLowerCase())
+
   async function handleAdd() {
-    const name = newName.trim()
-    if (!name) return
+    const name = query.trim()
+    if (!name || hasExactMatch) return
     await addExercise(name)
-    setNewName('')
+    setQuery('')
     refresh()
   }
 
@@ -38,6 +53,17 @@ export default function Exercises({ onSelectExercise }) {
     refresh()
   }
 
+  async function handleDelete(exercise) {
+    const entryCount = await countEntriesForExercise(exercise.id)
+    const warning = entryCount > 0
+      ? ` It has ${entryCount} logged set${entryCount === 1 ? '' : 's'} in your history — those will show as "Unknown exercise" instead of being deleted.`
+      : ''
+    const confirmed = window.confirm(`Permanently delete "${exercise.name}"?${warning}`)
+    if (!confirmed) return
+    await deleteExercise(exercise.id)
+    refresh()
+  }
+
   return (
     <div className="page">
       <div className="page-header">
@@ -46,18 +72,22 @@ export default function Exercises({ onSelectExercise }) {
 
       <div className="field-row">
         <input
-          placeholder="New exercise name"
-          value={newName}
-          onChange={(e) => setNewName(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && handleAdd()}
+          placeholder="Search or add an exercise"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => e.key === 'Enter' && !hasExactMatch && handleAdd()}
         />
-        <button className="btn-primary" onClick={handleAdd}>Add</button>
+        <button className="btn-primary" onClick={handleAdd} disabled={!query.trim() || hasExactMatch}>Add</button>
       </div>
 
       {exercises === null && <p className="muted">Loading…</p>}
 
+      {exercises?.length > 0 && visibleExercises?.length === 0 && (
+        <p className="muted">No exercises match "{query.trim()}". Tap Add to create it.</p>
+      )}
+
       <ul className="list">
-        {exercises?.map((ex) => (
+        {visibleExercises?.map((ex) => (
           <li key={ex.id} className="card exercise-row">
             {editingId === ex.id ? (
               <div className="field-row">
@@ -96,7 +126,10 @@ export default function Exercises({ onSelectExercise }) {
           {archived.map((ex) => (
             <li key={ex.id} className="card exercise-row">
               <span className="muted">{ex.name}</span>
-              <button className="btn-text" onClick={() => handleArchive(ex.id, false)}>Unarchive</button>
+              <div className="row-actions">
+                <button className="btn-text" onClick={() => handleArchive(ex.id, false)}>Unarchive</button>
+                <button className="btn-text btn-danger-text" onClick={() => handleDelete(ex)}>Delete</button>
+              </div>
             </li>
           ))}
         </ul>

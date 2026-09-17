@@ -105,6 +105,16 @@ export async function setExerciseArchived(id, archived) {
   await db.put('exercises', exercise)
 }
 
+export async function deleteExercise(id) {
+  const db = await dbPromise
+  await db.delete('exercises', id)
+}
+
+export async function countEntriesForExercise(exerciseId) {
+  const db = await dbPromise
+  return db.countFromIndex('entries', 'exerciseId', exerciseId)
+}
+
 // ---- Sessions + Entries ----
 
 export async function getSessions() {
@@ -144,6 +154,17 @@ export async function addSession({ date, note, entries }) {
 
   await tx.done
   return session
+}
+
+export async function deleteSession(sessionId) {
+  const db = await dbPromise
+  const tx = db.transaction(['sessions', 'entries'], 'readwrite')
+  const entryIds = await tx.objectStore('entries').index('sessionId').getAllKeys(sessionId)
+  await Promise.all([
+    tx.objectStore('sessions').delete(sessionId),
+    ...entryIds.map((id) => tx.objectStore('entries').delete(id)),
+  ])
+  await tx.done
 }
 
 export async function getEntriesForExercise(exerciseId) {

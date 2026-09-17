@@ -1,13 +1,24 @@
 import { useEffect, useState } from 'react'
-import { getSessions } from '../db'
+import { deleteSession, getSessions } from '../db'
 import { formatDate } from '../lib/date'
 
 export default function Sessions({ onNewSession }) {
   const [sessions, setSessions] = useState(null)
 
-  useEffect(() => {
+  function refresh() {
     getSessions().then(setSessions)
-  }, [])
+  }
+
+  useEffect(refresh, [])
+
+  async function handleDelete(session) {
+    const confirmed = window.confirm(
+      `Delete the ${formatDate(session.date)} session? This removes all ${session.entries.length} logged exercise${session.entries.length === 1 ? '' : 's'} and can't be undone.`
+    )
+    if (!confirmed) return
+    await deleteSession(session.id)
+    refresh()
+  }
 
   return (
     <div className="page">
@@ -38,6 +49,9 @@ export default function Sessions({ onNewSession }) {
               ))}
             </div>
             {session.note && <p className="note">{session.note}</p>}
+            <div className="card-actions">
+              <button className="btn-text btn-danger-text" onClick={() => handleDelete(session)}>Delete</button>
+            </div>
           </li>
         ))}
       </ul>
