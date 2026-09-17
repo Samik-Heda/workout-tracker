@@ -1,7 +1,7 @@
 const TABS = [
-  { key: 'sessions', label: 'Sessions', icon: '📋' },
-  { key: 'exercises', label: 'Exercises', icon: '💪' },
-  { key: 'settings', label: 'Settings', icon: '⚙️' },
+  { key: 'sessions', label: 'sessions' },
+  { key: 'exercises', label: 'exercises' },
+  { key: 'settings', label: 'settings' },
 ]
 
 export default function NavBar({ active, onChange }) {
@@ -13,8 +13,7 @@ export default function NavBar({ active, onChange }) {
           className={`nav-tab ${active === tab.key ? 'nav-tab-active' : ''}`}
           onClick={() => onChange(tab.key)}
         >
-          <span className="nav-icon" aria-hidden="true">{tab.icon}</span>
-          <span>{tab.label}</span>
+          {tab.label}
         </button>
       ))}
     </nav>

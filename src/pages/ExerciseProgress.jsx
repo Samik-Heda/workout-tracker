@@ -9,10 +9,16 @@ import {
   PointElement,
   Tooltip,
 } from 'chart.js'
+import ChartDataLabels from 'chartjs-plugin-datalabels'
 import { getEntriesForExercise, getExercise } from '../db'
 import { formatDate } from '../lib/date'
 
-ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend)
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend, ChartDataLabels)
+
+const ACCENT = '#39ff88'
+const DIM = '#2fbf55'
+const GRID = 'rgba(31, 143, 58, 0.35)'
+const TICK = '#1f8f3a'
 
 const MODES = [
   { key: 'combined', label: 'Combined' },
@@ -38,60 +44,88 @@ export default function ExerciseProgress({ exerciseId, onBack }) {
       datasets.push({
         label: 'Weight (kg)',
         data: entries.map((e) => e.weightKg),
-        borderColor: '#22c55e',
-        backgroundColor: '#22c55e',
+        borderColor: ACCENT,
+        backgroundColor: ACCENT,
         yAxisID: 'y',
         tension: 0.25,
+        pointRadius: 3.5,
+        datalabels: {
+          color: ACCENT,
+          align: 'top',
+          font: { family: "'Share Tech Mono', monospace", size: 10 },
+          formatter: (value) => `${value}kg`,
+        },
       })
     }
     if (mode === 'reps' || mode === 'combined') {
       datasets.push({
         label: 'Reps',
         data: entries.map((e) => e.reps),
-        borderColor: '#38bdf8',
-        backgroundColor: '#38bdf8',
+        borderColor: DIM,
+        backgroundColor: DIM,
+        borderDash: mode === 'combined' ? [5, 4] : [],
         yAxisID: mode === 'combined' ? 'y1' : 'y',
         tension: 0.25,
+        pointRadius: 3,
+        datalabels: {
+          color: DIM,
+          align: 'bottom',
+          font: { family: "'Share Tech Mono', monospace", size: 9 },
+          formatter: (value) => `${value}`,
+        },
       })
     }
     return { labels, datasets }
   }, [entries, mode])
 
   const chartOptions = useMemo(() => {
+    const tickFont = { family: "'Share Tech Mono', monospace", size: 10 }
     const scales = {
-      x: { ticks: { color: '#94a3b8' }, grid: { color: '#334155' } },
+      x: { ticks: { color: TICK, font: tickFont }, grid: { color: GRID } },
       y: {
         position: 'left',
-        title: { display: true, text: mode === 'reps' ? 'Reps' : 'Weight (kg)', color: '#94a3b8' },
-        ticks: { color: '#94a3b8' },
-        grid: { color: '#334155' },
+        title: { display: true, text: mode === 'reps' ? 'Reps' : 'Weight (kg)', color: TICK, font: tickFont },
+        ticks: { color: TICK, font: tickFont },
+        grid: { color: GRID },
       },
     }
     if (mode === 'combined') {
       scales.y1 = {
         position: 'right',
-        title: { display: true, text: 'Reps', color: '#94a3b8' },
-        ticks: { color: '#94a3b8' },
+        title: { display: true, text: 'Reps', color: TICK, font: tickFont },
+        ticks: { color: TICK, font: tickFont },
         grid: { drawOnChartArea: false },
       }
     }
     return {
       responsive: true,
+      layout: { padding: { top: 16, bottom: mode === 'combined' ? 16 : 4 } },
       scales,
       plugins: {
-        legend: { labels: { color: '#e2e8f0' } },
+        legend: { labels: { color: '#eafff1', font: tickFont } },
+        tooltip: {
+          backgroundColor: '#0a130b',
+          borderColor: ACCENT,
+          borderWidth: 1,
+          titleColor: '#eafff1',
+          bodyColor: ACCENT,
+          bodyFont: tickFont,
+          titleFont: tickFont,
+        },
       },
     }
   }, [mode])
 
+  const modeIndex = MODES.findIndex((m) => m.key === mode)
+
   return (
     <div className="page">
       <div className="page-header">
-        <button className="btn-text" onClick={onBack}>← Back</button>
+        <button className="btn-text" onClick={onBack}>back</button>
       </div>
       <h1>{exercise?.name ?? '…'}</h1>
 
-      <div className="toggle-group">
+      <div className="toggle-group" style={{ '--toggle-pos': `${modeIndex * 33.333}%` }}>
         {MODES.map((m) => (
           <button
             key={m.key}

@@ -3,8 +3,8 @@
 import { deflateSync } from 'node:zlib'
 import { writeFileSync, mkdirSync } from 'node:fs'
 
-const BG = [15, 23, 42, 255] // slate-900
-const FG = [34, 197, 94, 255] // green-500 accent
+const BG = [6, 10, 6, 255] // near-black terminal ground
+const FG = [57, 255, 136, 255] // neon terminal green
 
 function crc32(buf) {
   let c

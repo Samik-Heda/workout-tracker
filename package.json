@@ -13,6 +13,7 @@
   },
   "dependencies": {
     "chart.js": "^4.5.1",
+    "chartjs-plugin-datalabels": "^2.2.0",
     "idb": "^8.0.3",
     "react": "^19.2.8",
     "react-chartjs-2": "^5.3.1",

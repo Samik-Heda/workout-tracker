@@ -47,6 +47,8 @@ export default function App() {
 
   return (
     <div className="app">
+      <div className="scanlines" aria-hidden="true" />
+      <div className="grid-floor" aria-hidden="true" />
       <main className="app-content">{content}</main>
       <NavBar active={tab} onChange={goToTab} />
     </div>
