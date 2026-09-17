@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import NavBar from './components/NavBar'
 import Toast from './components/Toast'
 import Sessions from './pages/Sessions'
@@ -6,11 +6,23 @@ import NewSession from './pages/NewSession'
 import Exercises from './pages/Exercises'
 import ExerciseProgress from './pages/ExerciseProgress'
 import Settings from './pages/Settings'
+import { downloadBackup } from './lib/backup'
 
 export default function App() {
   const [tab, setTab] = useState('sessions')
   const [view, setView] = useState({ name: 'sessions' })
   const [toastMessages, setToastMessages] = useState(null)
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search)
+    if (params.get('autobackup') !== '1') return
+
+    params.delete('autobackup')
+    const cleanUrl = window.location.pathname + (params.toString() ? `?${params}` : '') + window.location.hash
+    window.history.replaceState({}, '', cleanUrl)
+
+    downloadBackup().then(() => setToastMessages(['Backup downloaded automatically']))
+  }, [])
 
   function goToTab(tabKey) {
     setTab(tabKey)

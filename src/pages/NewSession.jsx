@@ -1,11 +1,20 @@
 import { useEffect, useState } from 'react'
 import { addSession, getEntriesForExercise, getExercises } from '../db'
 import { today } from '../lib/date'
+import { formatDuration } from '../lib/duration'
 import { evaluateProgress } from '../lib/progress'
 import ExercisePicker from '../components/ExercisePicker'
 
 function emptyRow() {
-  return { key: crypto.randomUUID(), exerciseId: null, exerciseName: '', weightKg: '', reps: '', note: '' }
+  return {
+    key: crypto.randomUUID(),
+    exerciseId: null,
+    exerciseName: '',
+    weightKg: '',
+    reps: '',
+    durationSec: '',
+    note: '',
+  }
 }
 
 export default function NewSession({ onSaved, onCancel }) {
@@ -36,6 +45,10 @@ export default function NewSession({ onSaved, onCancel }) {
     setExercises((list) => [...list, exercise].sort((a, b) => a.name.localeCompare(b.name)))
   }
 
+  function isTimedRow(row) {
+    return exercises.find((e) => e.id === row.exerciseId)?.type === 'time'
+  }
+
   async function handleSave() {
     setError('')
     const touchedRows = rows.filter((row) => row.exerciseName.trim() || row.exerciseId)
@@ -49,7 +62,12 @@ export default function NewSession({ onSaved, onCancel }) {
         setError(`Select "${row.exerciseName.trim()}" from the list, or add it as a new exercise, before saving.`)
         return
       }
-      if (row.weightKg === '' || row.reps === '') {
+      if (isTimedRow(row)) {
+        if (row.durationSec === '') {
+          setError(`Enter a duration for ${row.exerciseName.trim()}.`)
+          return
+        }
+      } else if (row.weightKg === '' || row.reps === '') {
         setError(`Enter weight and reps for ${row.exerciseName.trim()}.`)
         return
       }
@@ -57,12 +75,11 @@ export default function NewSession({ onSaved, onCancel }) {
 
     setSaving(true)
     try {
-      const entries = touchedRows.map((row) => ({
-        exerciseId: row.exerciseId,
-        weightKg: Number(row.weightKg),
-        reps: Number(row.reps),
-        note: row.note,
-      }))
+      const entries = touchedRows.map((row) =>
+        isTimedRow(row)
+          ? { exerciseId: row.exerciseId, durationSec: Number(row.durationSec), note: row.note }
+          : { exerciseId: row.exerciseId, weightKg: Number(row.weightKg), reps: Number(row.reps), note: row.note }
+      )
 
       const priorHistory = {}
       for (const entry of entries) {
@@ -73,14 +90,16 @@ export default function NewSession({ onSaved, onCancel }) {
 
       const achievements = []
       for (const row of touchedRows) {
-        const { isPR, isBeatLast } = evaluateProgress(
-          { weightKg: Number(row.weightKg), reps: Number(row.reps) },
-          priorHistory[row.exerciseId]
-        )
+        const timed = isTimedRow(row)
+        const newEntry = timed
+          ? { durationSec: Number(row.durationSec) }
+          : { weightKg: Number(row.weightKg), reps: Number(row.reps) }
+        const { isPR, isBeatLast } = evaluateProgress(newEntry, priorHistory[row.exerciseId])
+        const label = timed ? formatDuration(Number(row.durationSec)) : `${row.weightKg}kg × ${row.reps}`
         if (isPR) {
-          achievements.push(`New PR on ${row.exerciseName.trim()} — ${row.weightKg}kg × ${row.reps}`)
+          achievements.push(`New PR on ${row.exerciseName.trim()} — ${label}`)
         } else if (isBeatLast) {
-          achievements.push(`Beat your last ${row.exerciseName.trim()} session — ${row.weightKg}kg × ${row.reps}`)
+          achievements.push(`Beat your last ${row.exerciseName.trim()} session — ${label}`)
         }
       }
 
@@ -122,30 +141,44 @@ export default function NewSession({ onSaved, onCancel }) {
               onExerciseCreated={handleExerciseCreated}
             />
           </label>
-          <div className="field-row">
+          {isTimedRow(row) ? (
             <label className="field">
-              <span>Weight (kg)</span>
-              <input
-                type="number"
-                inputMode="decimal"
-                min="0"
-                step="0.5"
-                value={row.weightKg}
-                onChange={(e) => updateRow(row.key, { weightKg: e.target.value })}
-              />
-            </label>
-            <label className="field">
-              <span>Reps</span>
+              <span>Duration (seconds)</span>
               <input
                 type="number"
                 inputMode="numeric"
                 min="0"
                 step="1"
-                value={row.reps}
-                onChange={(e) => updateRow(row.key, { reps: e.target.value })}
+                value={row.durationSec}
+                onChange={(e) => updateRow(row.key, { durationSec: e.target.value })}
               />
             </label>
-          </div>
+          ) : (
+            <div className="field-row">
+              <label className="field">
+                <span>Weight (kg)</span>
+                <input
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  step="0.5"
+                  value={row.weightKg}
+                  onChange={(e) => updateRow(row.key, { weightKg: e.target.value })}
+                />
+              </label>
+              <label className="field">
+                <span>Reps</span>
+                <input
+                  type="number"
+                  inputMode="numeric"
+                  min="0"
+                  step="1"
+                  value={row.reps}
+                  onChange={(e) => updateRow(row.key, { reps: e.target.value })}
+                />
+              </label>
+            </div>
+          )}
           <label className="field">
             <span>Note (optional)</span>
             <input

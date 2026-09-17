@@ -4,8 +4,8 @@ import {
   countEntriesForExercise,
   deleteExercise,
   getExercises,
-  renameExercise,
   setExerciseArchived,
+  updateExercise,
 } from '../db'
 import { fuzzySearchExercises } from '../lib/fuzzySearch'
 
@@ -16,6 +16,8 @@ export default function Exercises({ onSelectExercise }) {
   const [query, setQuery] = useState('')
   const [editingId, setEditingId] = useState(null)
   const [editingName, setEditingName] = useState('')
+  const [editingType, setEditingType] = useState('reps')
+  const [editingNotes, setEditingNotes] = useState('')
 
   function refresh() {
     getExercises().then(setExercises)
@@ -41,9 +43,9 @@ export default function Exercises({ onSelectExercise }) {
     refresh()
   }
 
-  async function handleRenameSave(id) {
+  async function handleEditSave(id) {
     const name = editingName.trim()
-    if (name) await renameExercise(id, name)
+    if (name) await updateExercise(id, { name, type: editingType, notes: editingNotes })
     setEditingId(null)
     refresh()
   }
@@ -88,16 +90,34 @@ export default function Exercises({ onSelectExercise }) {
 
       <ul className="list">
         {visibleExercises?.map((ex) => (
-          <li key={ex.id} className="card exercise-row">
+          <li key={ex.id} className={editingId === ex.id ? 'card' : 'card exercise-row'}>
             {editingId === ex.id ? (
-              <div className="field-row">
-                <input value={editingName} onChange={(e) => setEditingName(e.target.value)} />
-                <button className="btn-text" onClick={() => handleRenameSave(ex.id)}>Save</button>
-              </div>
+              <>
+                <label className="field">
+                  <span>Name</span>
+                  <input value={editingName} onChange={(e) => setEditingName(e.target.value)} />
+                </label>
+                <label className="field">
+                  <span>Tracked by</span>
+                  <select value={editingType} onChange={(e) => setEditingType(e.target.value)}>
+                    <option value="reps">Weight &amp; reps</option>
+                    <option value="time">Time (e.g. plank)</option>
+                  </select>
+                </label>
+                <label className="field">
+                  <span>Notes (optional — video link, cues, etc.)</span>
+                  <textarea rows={3} value={editingNotes} onChange={(e) => setEditingNotes(e.target.value)} />
+                </label>
+                <div className="card-actions">
+                  <button className="btn-text" onClick={() => setEditingId(null)}>Cancel</button>
+                  <button className="btn-text" onClick={() => handleEditSave(ex.id)}>Save</button>
+                </div>
+              </>
             ) : (
               <>
                 <button className="exercise-name-btn" onClick={() => onSelectExercise(ex.id)}>
                   {ex.name}
+                  {ex.type === 'time' && <span className="badge">⏱ timed</span>}
                 </button>
                 <div className="row-actions">
                   <button
@@ -105,9 +125,11 @@ export default function Exercises({ onSelectExercise }) {
                     onClick={() => {
                       setEditingId(ex.id)
                       setEditingName(ex.name)
+                      setEditingType(ex.type ?? 'reps')
+                      setEditingNotes(ex.notes ?? '')
                     }}
                   >
-                    Rename
+                    Edit
                   </button>
                   <button className="btn-text" onClick={() => handleArchive(ex.id, true)}>Archive</button>
                 </div>

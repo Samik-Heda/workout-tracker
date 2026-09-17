@@ -12,6 +12,8 @@ import {
 import ChartDataLabels from 'chartjs-plugin-datalabels'
 import { getEntriesForExercise, getExercise } from '../db'
 import { formatDate } from '../lib/date'
+import { formatDuration } from '../lib/duration'
+import LinkifiedText from '../components/LinkifiedText'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Legend, ChartDataLabels)
 
@@ -36,9 +38,35 @@ export default function ExerciseProgress({ exerciseId, onBack }) {
     getEntriesForExercise(exerciseId).then(setEntries)
   }, [exerciseId])
 
+  const isTimed = exercise?.type === 'time'
+
   const chartData = useMemo(() => {
     if (!entries) return null
     const labels = entries.map((e) => formatDate(e.date))
+
+    if (isTimed) {
+      return {
+        labels,
+        datasets: [
+          {
+            label: 'Duration',
+            data: entries.map((e) => e.durationSec),
+            borderColor: ACCENT,
+            backgroundColor: ACCENT,
+            yAxisID: 'y',
+            tension: 0.25,
+            pointRadius: 3.5,
+            datalabels: {
+              color: ACCENT,
+              align: 'top',
+              font: { family: "'Share Tech Mono', monospace", size: 10 },
+              formatter: (value) => formatDuration(value),
+            },
+          },
+        ],
+      }
+    }
+
     const datasets = []
     if (mode === 'weight' || mode === 'combined') {
       datasets.push({
@@ -76,7 +104,7 @@ export default function ExerciseProgress({ exerciseId, onBack }) {
       })
     }
     return { labels, datasets }
-  }, [entries, mode])
+  }, [entries, mode, isTimed])
 
   const chartOptions = useMemo(() => {
     const tickFont = { family: "'Share Tech Mono', monospace", size: 10 }
@@ -84,12 +112,17 @@ export default function ExerciseProgress({ exerciseId, onBack }) {
       x: { ticks: { color: TICK, font: tickFont }, grid: { color: GRID } },
       y: {
         position: 'left',
-        title: { display: true, text: mode === 'reps' ? 'Reps' : 'Weight (kg)', color: TICK, font: tickFont },
+        title: {
+          display: true,
+          text: isTimed ? 'Duration (s)' : mode === 'reps' ? 'Reps' : 'Weight (kg)',
+          color: TICK,
+          font: tickFont,
+        },
         ticks: { color: TICK, font: tickFont },
         grid: { color: GRID },
       },
     }
-    if (mode === 'combined') {
+    if (!isTimed && mode === 'combined') {
       scales.y1 = {
         position: 'right',
         title: { display: true, text: 'Reps', color: TICK, font: tickFont },
@@ -114,7 +147,7 @@ export default function ExerciseProgress({ exerciseId, onBack }) {
         },
       },
     }
-  }, [mode])
+  }, [mode, isTimed])
 
   const modeIndex = MODES.findIndex((m) => m.key === mode)
 
@@ -125,17 +158,21 @@ export default function ExerciseProgress({ exerciseId, onBack }) {
       </div>
       <h1>{exercise?.name ?? '…'}</h1>
 
-      <div className="toggle-group" style={{ '--toggle-pos': `${modeIndex * 33.333}%` }}>
-        {MODES.map((m) => (
-          <button
-            key={m.key}
-            className={`toggle-btn ${mode === m.key ? 'toggle-btn-active' : ''}`}
-            onClick={() => setMode(m.key)}
-          >
-            {m.label}
-          </button>
-        ))}
-      </div>
+      {exercise?.notes && <LinkifiedText className="note" text={exercise.notes} />}
+
+      {!isTimed && (
+        <div className="toggle-group" style={{ '--toggle-pos': `${modeIndex * 33.333}%` }}>
+          {MODES.map((m) => (
+            <button
+              key={m.key}
+              className={`toggle-btn ${mode === m.key ? 'toggle-btn-active' : ''}`}
+              onClick={() => setMode(m.key)}
+            >
+              {m.label}
+            </button>
+          ))}
+        </div>
+      )}
 
       {entries?.length === 0 && <p className="muted">No logged sets for this exercise yet.</p>}
 
@@ -153,7 +190,9 @@ export default function ExerciseProgress({ exerciseId, onBack }) {
             <li key={entry.id} className="card">
               <div className="card-title-row">
                 <strong>{formatDate(entry.date)}</strong>
-                <span className="muted">{entry.weightKg}kg × {entry.reps}</span>
+                <span className="muted">
+                  {entry.durationSec != null ? formatDuration(entry.durationSec) : `${entry.weightKg}kg × ${entry.reps}`}
+                </span>
               </div>
               {entry.note && <p className="note">{entry.note}</p>}
             </li>

@@ -1,7 +1,7 @@
 import { openDB } from 'idb'
 
 const DB_NAME = 'workout-tracker'
-const DB_VERSION = 2
+const DB_VERSION = 3
 
 const SEED_EXERCISES = [
   // Chest
@@ -39,7 +39,17 @@ async function seedMissingExercises(exercisesStore) {
   const now = Date.now()
   for (const name of SEED_EXERCISES) {
     if (!existingNames.has(name.toLowerCase())) {
-      await exercisesStore.put({ id: uid(), name, archived: false, createdAt: now })
+      await exercisesStore.put({ id: uid(), name, type: 'reps', archived: false, createdAt: now })
+    }
+  }
+}
+
+async function backfillExerciseType(exercisesStore) {
+  const all = await exercisesStore.getAll()
+  for (const exercise of all) {
+    if (!exercise.type) {
+      exercise.type = 'reps'
+      await exercisesStore.put(exercise)
     }
   }
 }
@@ -65,6 +75,10 @@ const dbPromise = openDB(DB_NAME, DB_VERSION, {
     if (oldVersion < 2) {
       await seedMissingExercises(exercisesStore)
     }
+
+    if (oldVersion < 3) {
+      await backfillExerciseType(exercisesStore)
+    }
   },
 })
 
@@ -82,18 +96,27 @@ export async function getExercise(id) {
   return db.get('exercises', id)
 }
 
-export async function addExercise(name) {
+export async function addExercise(name, { type = 'reps', notes = '' } = {}) {
   const db = await dbPromise
-  const exercise = { id: uid(), name: name.trim(), archived: false, createdAt: Date.now() }
+  const exercise = {
+    id: uid(),
+    name: name.trim(),
+    type,
+    notes: notes.trim() || undefined,
+    archived: false,
+    createdAt: Date.now(),
+  }
   await db.put('exercises', exercise)
   return exercise
 }
 
-export async function renameExercise(id, name) {
+export async function updateExercise(id, { name, type, notes }) {
   const db = await dbPromise
   const exercise = await db.get('exercises', id)
   if (!exercise) return
-  exercise.name = name.trim()
+  if (name !== undefined) exercise.name = name.trim()
+  if (type !== undefined) exercise.type = type
+  if (notes !== undefined) exercise.notes = notes.trim() || undefined
   await db.put('exercises', exercise)
 }
 
@@ -147,6 +170,7 @@ export async function addSession({ date, note, entries }) {
       exerciseId: entry.exerciseId,
       weightKg: entry.weightKg,
       reps: entry.reps,
+      durationSec: entry.durationSec,
       note: entry.note?.trim() || undefined,
       createdAt: Date.now(),
     })

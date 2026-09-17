@@ -29,3 +29,16 @@ The app then works fully offline — you only need to reopen the URL again if yo
 ## Backups
 
 Since all data lives only in this phone's browser storage, use **Settings → Export backup** regularly to save a JSON file you can restore later via **Settings → Import backup**.
+
+### Automatic backups on iPhone
+
+You can make this happen on its own, without opening the app:
+
+1. **Send Safari downloads to iCloud Drive.** In iOS **Settings → Apps → Safari → Downloads**, pick an iCloud Drive folder. Every backup you export from then on is automatically synced/backed up.
+2. **Set up a scheduled automation.** Visiting the app with `?autobackup=1` appended to the URL (e.g. `https://<your-username>.github.io/workout-tracker/?autobackup=1`) triggers an export immediately on load, no taps required. In the iOS **Shortcuts** app:
+   - Go to **Automation → + → Create Personal Automation → Time of Day**, pick a daily time.
+   - Add action **Open URLs**, set it to that `?autobackup=1` URL.
+   - Turn off **Ask Before Running** so it fires without a confirmation prompt.
+   - Safari will briefly open, run the export, and save the JSON to the iCloud Drive folder from step 1.
+
+This keeps a rolling JSON snapshot in iCloud with no server and no account involved.

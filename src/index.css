@@ -302,7 +302,8 @@ h1::after {
 }
 
 input,
-select {
+select,
+textarea {
   background: var(--bg);
   border: 1px solid var(--border-dim);
   border-radius: 2px;
@@ -313,15 +314,37 @@ select {
   width: 100%;
 }
 
-input::placeholder {
+textarea {
+  resize: vertical;
+}
+
+input::placeholder,
+textarea::placeholder {
   color: #2a5c39;
 }
 
 input:focus,
-select:focus {
+select:focus,
+textarea:focus {
   outline: none;
   border-color: var(--accent);
   box-shadow: 0 0 10px var(--accent-glow);
+}
+
+.badge {
+  margin-left: 0.5rem;
+  font-size: 0.7rem;
+  color: var(--accent);
+  border: 1px solid var(--border-dim);
+  border-radius: 2px;
+  padding: 0.1rem 0.35rem;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.note a {
+  color: var(--accent);
 }
 
 button {

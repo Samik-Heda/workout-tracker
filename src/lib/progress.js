@@ -6,6 +6,14 @@ export function evaluateProgress(newEntry, priorEntries) {
     return { isPR: false, isBeatLast: false }
   }
 
+  if (newEntry.durationSec != null) {
+    const last = priorEntries[priorEntries.length - 1]
+    const isBeatLast = newEntry.durationSec > last.durationSec
+    const maxDuration = Math.max(...priorEntries.map((e) => e.durationSec))
+    const isPR = newEntry.durationSec > maxDuration
+    return { isPR, isBeatLast }
+  }
+
   const last = priorEntries[priorEntries.length - 1]
   const isBeatLast =
     newEntry.weightKg > last.weightKg || (newEntry.weightKg === last.weightKg && newEntry.reps > last.reps)

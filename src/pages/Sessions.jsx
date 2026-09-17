@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { deleteSession, getSessions } from '../db'
 import { formatDate } from '../lib/date'
+import { formatDuration } from '../lib/duration'
 
 export default function Sessions({ onNewSession }) {
   const [sessions, setSessions] = useState(null)
@@ -44,7 +45,9 @@ export default function Sessions({ onNewSession }) {
               {session.entries.map((entry) => (
                 <div key={entry.id} className="entry-row">
                   <span>{entry.exerciseName}</span>
-                  <span className="muted">{entry.weightKg}kg × {entry.reps}</span>
+                  <span className="muted">
+                    {entry.durationSec != null ? formatDuration(entry.durationSec) : `${entry.weightKg}kg × ${entry.reps}`}
+                  </span>
                 </div>
               ))}
             </div>
