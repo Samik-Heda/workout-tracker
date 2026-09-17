@@ -1,9 +1,10 @@
 import { useEffect, useState } from 'react'
-import { addExercise, addSession, getExercises } from '../db'
+import { addSession, getExercises } from '../db'
 import { today } from '../lib/date'
+import ExercisePicker from '../components/ExercisePicker'
 
 function emptyRow() {
-  return { key: crypto.randomUUID(), exerciseName: '', weightKg: '', reps: '', note: '' }
+  return { key: crypto.randomUUID(), exerciseId: null, exerciseName: '', weightKg: '', reps: '', note: '' }
 }
 
 export default function NewSession({ onSaved, onCancel }) {
@@ -18,8 +19,8 @@ export default function NewSession({ onSaved, onCancel }) {
     getExercises().then(setExercises)
   }, [])
 
-  function updateRow(key, field, value) {
-    setRows((rows) => rows.map((row) => (row.key === key ? { ...row, [field]: value } : row)))
+  function updateRow(key, patch) {
+    setRows((rows) => rows.map((row) => (row.key === key ? { ...row, ...patch } : row)))
   }
 
   function addRow() {
@@ -30,15 +31,23 @@ export default function NewSession({ onSaved, onCancel }) {
     setRows((rows) => rows.filter((row) => row.key !== key))
   }
 
+  function handleExerciseCreated(exercise) {
+    setExercises((list) => [...list, exercise].sort((a, b) => a.name.localeCompare(b.name)))
+  }
+
   async function handleSave() {
     setError('')
-    const validRows = rows.filter((row) => row.exerciseName.trim())
+    const touchedRows = rows.filter((row) => row.exerciseName.trim() || row.exerciseId)
 
-    if (validRows.length === 0) {
+    if (touchedRows.length === 0) {
       setError('Add at least one exercise.')
       return
     }
-    for (const row of validRows) {
+    for (const row of touchedRows) {
+      if (!row.exerciseId) {
+        setError(`Select "${row.exerciseName.trim()}" from the list, or add it as a new exercise, before saving.`)
+        return
+      }
       if (row.weightKg === '' || row.reps === '') {
         setError(`Enter weight and reps for ${row.exerciseName.trim()}.`)
         return
@@ -47,18 +56,12 @@ export default function NewSession({ onSaved, onCancel }) {
 
     setSaving(true)
     try {
-      const entries = []
-      for (const row of validRows) {
-        const name = row.exerciseName.trim()
-        let exercise = exercises.find((e) => e.name.toLowerCase() === name.toLowerCase())
-        if (!exercise) exercise = await addExercise(name)
-        entries.push({
-          exerciseId: exercise.id,
-          weightKg: Number(row.weightKg),
-          reps: Number(row.reps),
-          note: row.note,
-        })
-      }
+      const entries = touchedRows.map((row) => ({
+        exerciseId: row.exerciseId,
+        weightKg: Number(row.weightKg),
+        reps: Number(row.reps),
+        note: row.note,
+      }))
       await addSession({ date, note: sessionNote, entries })
       onSaved()
     } catch {
@@ -79,12 +82,6 @@ export default function NewSession({ onSaved, onCancel }) {
         <input type="date" value={date} onChange={(e) => setDate(e.target.value)} />
       </label>
 
-      <datalist id="exercise-options">
-        {exercises.map((e) => (
-          <option key={e.id} value={e.name} />
-        ))}
-      </datalist>
-
       {rows.map((row, i) => (
         <div key={row.key} className="card entry-form-row">
           <div className="card-title-row">
@@ -94,12 +91,13 @@ export default function NewSession({ onSaved, onCancel }) {
             )}
           </div>
           <label className="field">
-            <span>Exercise name</span>
-            <input
-              list="exercise-options"
-              placeholder="e.g. Bench Press"
-              value={row.exerciseName}
-              onChange={(e) => updateRow(row.key, 'exerciseName', e.target.value)}
+            <span>Exercise</span>
+            <ExercisePicker
+              exercises={exercises}
+              exerciseId={row.exerciseId}
+              exerciseName={row.exerciseName}
+              onChange={({ exerciseId, exerciseName }) => updateRow(row.key, { exerciseId, exerciseName })}
+              onExerciseCreated={handleExerciseCreated}
             />
           </label>
           <div className="field-row">
@@ -111,7 +109,7 @@ export default function NewSession({ onSaved, onCancel }) {
                 min="0"
                 step="0.5"
                 value={row.weightKg}
-                onChange={(e) => updateRow(row.key, 'weightKg', e.target.value)}
+                onChange={(e) => updateRow(row.key, { weightKg: e.target.value })}
               />
             </label>
             <label className="field">
@@ -122,7 +120,7 @@ export default function NewSession({ onSaved, onCancel }) {
                 min="0"
                 step="1"
                 value={row.reps}
-                onChange={(e) => updateRow(row.key, 'reps', e.target.value)}
+                onChange={(e) => updateRow(row.key, { reps: e.target.value })}
               />
             </label>
           </div>
@@ -131,7 +129,7 @@ export default function NewSession({ onSaved, onCancel }) {
             <input
               placeholder="e.g. felt easy, last rep was a grind"
               value={row.note}
-              onChange={(e) => updateRow(row.key, 'note', e.target.value)}
+              onChange={(e) => updateRow(row.key, { note: e.target.value })}
             />
           </label>
         </div>
