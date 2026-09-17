@@ -84,9 +84,33 @@ body {
 .app-content {
   flex: 1;
   overflow-y: auto;
+  padding-top: env(safe-area-inset-top);
   padding-bottom: 5rem;
   position: relative;
   z-index: 1;
+}
+
+.toast {
+  position: relative;
+  z-index: 3;
+  padding: calc(0.75rem + env(safe-area-inset-top)) 1rem 0.75rem;
+  background: rgba(10, 19, 11, 0.95);
+  border-bottom: 1px solid var(--accent);
+  box-shadow: 0 0 16px var(--accent-glow);
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.toast-line {
+  color: var(--accent);
+  font-size: 0.85rem;
+  text-shadow: 0 0 6px var(--accent-glow);
+}
+
+.toast-line::before {
+  content: '> ';
+  color: var(--text-dim);
 }
 
 .page {
@@ -259,6 +283,17 @@ h1::after {
 .field-row {
   display: flex;
   gap: 0.6rem;
+  align-items: flex-start;
+}
+
+.field-row > input {
+  flex: 1;
+  min-width: 0;
+}
+
+.field-row > button {
+  flex-shrink: 0;
+  white-space: nowrap;
 }
 
 input,

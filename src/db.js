@@ -1,40 +1,69 @@
 import { openDB } from 'idb'
 
 const DB_NAME = 'workout-tracker'
-const DB_VERSION = 1
+const DB_VERSION = 2
 
 const SEED_EXERCISES = [
-  'Bench Press',
-  'Squat',
-  'Deadlift',
-  'Overhead Press',
-  'Barbell Row',
-  'Pull-up',
-  'Dip',
-  'Bicep Curl',
-  'Lat Pulldown',
-  'Leg Press',
+  // Chest
+  'Bench Press', 'Incline Bench Press', 'Decline Bench Press', 'Dumbbell Bench Press',
+  'Incline Dumbbell Press', 'Dumbbell Fly', 'Incline Dumbbell Fly', 'Cable Fly',
+  'Chest Press Machine', 'Push-up', 'Dip',
+  // Back
+  'Deadlift', 'Sumo Deadlift', 'Rack Pull', 'Barbell Row', 'Pendlay Row',
+  'Dumbbell Row', 'T-Bar Row', 'Seated Cable Row', 'Lat Pulldown',
+  'Close-Grip Lat Pulldown', 'Pull-up', 'Chin-up', 'Face Pull', 'Shrug',
+  // Legs
+  'Squat', 'Front Squat', 'Box Squat', 'Zercher Squat', 'Goblet Squat',
+  'Bulgarian Split Squat', 'Leg Press', 'Walking Lunge', 'Leg Extension',
+  'Leg Curl', 'Romanian Deadlift', 'Calf Raise', 'Seated Calf Raise',
+  'Hip Thrust', 'Glute Bridge',
+  // Shoulders
+  'Overhead Press', 'Push Press', 'Seated Dumbbell Shoulder Press', 'Arnold Press',
+  'Lateral Raise', 'Cable Lateral Raise', 'Front Raise', 'Rear Delt Fly', 'Upright Row',
+  // Arms
+  'Bicep Curl', 'Barbell Curl', 'Incline Barbell Curl', 'Hammer Curl', 'Preacher Curl',
+  'Concentration Curl', 'Cable Curl', 'Spider Curl', 'Tricep Pushdown',
+  'Overhead Tricep Extension', 'Skull Crusher', 'Close-Grip Bench Press',
+  // Core / other
+  'Plank', 'Sit-up', 'Crunch', 'Cable Crunch', 'Hanging Leg Raise', 'Russian Twist',
+  'Ab Wheel Rollout', "Farmer's Carry", 'Kettlebell Swing',
 ]
 
 function uid() {
   return crypto.randomUUID()
 }
 
+async function seedMissingExercises(exercisesStore) {
+  const existing = await exercisesStore.getAll()
+  const existingNames = new Set(existing.map((e) => e.name.toLowerCase()))
+  const now = Date.now()
+  for (const name of SEED_EXERCISES) {
+    if (!existingNames.has(name.toLowerCase())) {
+      await exercisesStore.put({ id: uid(), name, archived: false, createdAt: now })
+    }
+  }
+}
+
 const dbPromise = openDB(DB_NAME, DB_VERSION, {
-  upgrade(db) {
-    const exercises = db.createObjectStore('exercises', { keyPath: 'id' })
-    exercises.createIndex('archived', 'archived')
+  async upgrade(db, oldVersion, _newVersion, transaction) {
+    let exercisesStore
 
-    const sessions = db.createObjectStore('sessions', { keyPath: 'id' })
-    sessions.createIndex('date', 'date')
+    if (oldVersion < 1) {
+      exercisesStore = db.createObjectStore('exercises', { keyPath: 'id' })
+      exercisesStore.createIndex('archived', 'archived')
 
-    const entries = db.createObjectStore('entries', { keyPath: 'id' })
-    entries.createIndex('exerciseId', 'exerciseId')
-    entries.createIndex('sessionId', 'sessionId')
+      const sessions = db.createObjectStore('sessions', { keyPath: 'id' })
+      sessions.createIndex('date', 'date')
 
-    const now = Date.now()
-    for (const name of SEED_EXERCISES) {
-      exercises.put({ id: uid(), name, archived: false, createdAt: now })
+      const entries = db.createObjectStore('entries', { keyPath: 'id' })
+      entries.createIndex('exerciseId', 'exerciseId')
+      entries.createIndex('sessionId', 'sessionId')
+    } else {
+      exercisesStore = transaction.objectStore('exercises')
+    }
+
+    if (oldVersion < 2) {
+      await seedMissingExercises(exercisesStore)
     }
   },
 })

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { addSession, getExercises } from '../db'
+import { addSession, getEntriesForExercise, getExercises } from '../db'
 import { today } from '../lib/date'
+import { evaluateProgress } from '../lib/progress'
 import ExercisePicker from '../components/ExercisePicker'
 
 function emptyRow() {
@@ -62,8 +63,29 @@ export default function NewSession({ onSaved, onCancel }) {
         reps: Number(row.reps),
         note: row.note,
       }))
+
+      const priorHistory = {}
+      for (const entry of entries) {
+        if (!(entry.exerciseId in priorHistory)) {
+          priorHistory[entry.exerciseId] = await getEntriesForExercise(entry.exerciseId)
+        }
+      }
+
+      const achievements = []
+      for (const row of touchedRows) {
+        const { isPR, isBeatLast } = evaluateProgress(
+          { weightKg: Number(row.weightKg), reps: Number(row.reps) },
+          priorHistory[row.exerciseId]
+        )
+        if (isPR) {
+          achievements.push(`New PR on ${row.exerciseName.trim()} — ${row.weightKg}kg × ${row.reps}`)
+        } else if (isBeatLast) {
+          achievements.push(`Beat your last ${row.exerciseName.trim()} session — ${row.weightKg}kg × ${row.reps}`)
+        }
+      }
+
       await addSession({ date, note: sessionNote, entries })
-      onSaved()
+      onSaved(achievements)
     } catch {
       setError('Something went wrong saving this session. Try again.')
       setSaving(false)

@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import NavBar from './components/NavBar'
+import Toast from './components/Toast'
 import Sessions from './pages/Sessions'
 import NewSession from './pages/NewSession'
 import Exercises from './pages/Exercises'
@@ -9,10 +10,16 @@ import Settings from './pages/Settings'
 export default function App() {
   const [tab, setTab] = useState('sessions')
   const [view, setView] = useState({ name: 'sessions' })
+  const [toastMessages, setToastMessages] = useState(null)
 
   function goToTab(tabKey) {
     setTab(tabKey)
     setView({ name: tabKey })
+  }
+
+  function handleSessionSaved(achievements) {
+    setView({ name: 'sessions', refreshKey: Date.now() })
+    if (achievements?.length) setToastMessages(achievements)
   }
 
   let content
@@ -20,7 +27,7 @@ export default function App() {
     case 'newSession':
       content = (
         <NewSession
-          onSaved={() => setView({ name: 'sessions', refreshKey: Date.now() })}
+          onSaved={handleSessionSaved}
           onCancel={() => setView({ name: 'sessions' })}
         />
       )
@@ -49,6 +56,7 @@ export default function App() {
     <div className="app">
       <div className="scanlines" aria-hidden="true" />
       <div className="grid-floor" aria-hidden="true" />
+      <Toast messages={toastMessages} onDismiss={() => setToastMessages(null)} />
       <main className="app-content">{content}</main>
       <NavBar active={tab} onChange={goToTab} />
     </div>
