@@ -1,6 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
 import {
-  addExercise,
   countEntriesForExercise,
   deleteExercise,
   getExercises,
@@ -8,12 +7,14 @@ import {
   updateExercise,
 } from '../db'
 import { fuzzySearchExercises } from '../lib/fuzzySearch'
+import AddExerciseModal from '../components/AddExerciseModal'
 
 export default function Exercises({ onSelectExercise }) {
   const [exercises, setExercises] = useState(null)
   const [archived, setArchived] = useState([])
   const [showArchived, setShowArchived] = useState(false)
   const [query, setQuery] = useState('')
+  const [showAddModal, setShowAddModal] = useState(false)
   const [editingId, setEditingId] = useState(null)
   const [editingName, setEditingName] = useState('')
   const [editingType, setEditingType] = useState('reps')
@@ -35,12 +36,9 @@ export default function Exercises({ onSelectExercise }) {
 
   const hasExactMatch = (exercises ?? []).some((e) => e.name.toLowerCase() === query.trim().toLowerCase())
 
-  async function handleAdd() {
-    const name = query.trim()
-    if (!name || hasExactMatch) return
-    await addExercise(name)
-    setQuery('')
-    refresh()
+  function handleAddClick() {
+    if (!query.trim() || hasExactMatch) return
+    setShowAddModal(true)
   }
 
   async function handleEditSave(id) {
@@ -77,10 +75,22 @@ export default function Exercises({ onSelectExercise }) {
           placeholder="Search or add an exercise"
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          onKeyDown={(e) => e.key === 'Enter' && !hasExactMatch && handleAdd()}
+          onKeyDown={(e) => e.key === 'Enter' && handleAddClick()}
         />
-        <button className="btn-primary" onClick={handleAdd} disabled={!query.trim() || hasExactMatch}>Add</button>
+        <button className="btn-primary" onClick={handleAddClick} disabled={!query.trim() || hasExactMatch}>Add</button>
       </div>
+
+      {showAddModal && (
+        <AddExerciseModal
+          initialName={query.trim()}
+          onClose={() => setShowAddModal(false)}
+          onCreated={() => {
+            setShowAddModal(false)
+            setQuery('')
+            refresh()
+          }}
+        />
+      )}
 
       {exercises === null && <p className="muted">Loading…</p>}
 
